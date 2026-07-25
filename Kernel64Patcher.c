@@ -861,7 +861,43 @@ int get_root_volume_seal_is_broken_patch(void* kernel_buf,size_t kernel_len) {
     return 0;
 }
 
+// NEW: Patch "unencrypted data volume is not allowed" @%s:%d
+int get_unencrypted_data_volume_patch(void* kernel_buf,size_t kernel_len) {
 
+    printf("%s: Entering ...\n", __FUNCTION__);
+
+    char unencrypted_data_volume_string[sizeof("\"unencrypted data volume is not allowed\" @%s:%d")] = "\"unencrypted data volume is not allowed\" @%s:%d";
+
+    unsigned char *unencrypted_data_volume_loc = memmem(kernel_buf, kernel_len, unencrypted_data_volume_string, sizeof("\"unencrypted data volume is not allowed\" @%s:%d") - 1);
+    if(!unencrypted_data_volume_loc) {
+        printf("%s: Could not find \"%s\" string\n", __FUNCTION__, unencrypted_data_volume_string);
+        return -1;
+    }
+
+    for (; *unencrypted_data_volume_loc != 0; unencrypted_data_volume_loc--);
+    unencrypted_data_volume_loc++;
+
+    printf("%s: Found \"%s\" str loc at %p\n", __FUNCTION__, unencrypted_data_volume_string, GET_OFFSET(kernel_len, unencrypted_data_volume_loc));
+
+    addr_t unencrypted_data_volume_ref = xref64(kernel_buf,0,kernel_len,(addr_t)GET_OFFSET(kernel_len, unencrypted_data_volume_loc));
+    if(!unencrypted_data_volume_ref) {
+        printf("%s: Could not find \"%s\" xref\n",__FUNCTION__, unencrypted_data_volume_string);
+        return -1;
+    }
+    printf("%s: Found \"%s\" xref at %p\n",__FUNCTION__, unencrypted_data_volume_string, (void*) unencrypted_data_volume_ref);
+
+    addr_t tbnz_ref = step64_back(kernel_buf, unencrypted_data_volume_ref, 20 * 4, 0x36000000, 0x7E000000);
+    if(!tbnz_ref) {
+        printf("%s: Could not find tbnz\n",__FUNCTION__);
+        return -1;
+    }
+    printf("%s: Found tbnz at %p\n",__FUNCTION__, (void*) tbnz_ref);
+
+    printf("%s: Patching tbnz at %p\n",__FUNCTION__, (void*) tbnz_ref);
+    *((uint32_t *) (kernel_buf + tbnz_ref)) = 0xd503201f;
+    printf("%s: Patched tbnz at %p\n",__FUNCTION__, (void*) tbnz_ref);
+    return 0;
+}
 
 int get_update_rootfs_rw_patch(void* kernel_buf,size_t kernel_len) {
 
@@ -1115,6 +1151,7 @@ int main(int argc, char **argv) {
         printf("\t-o\t\tPatch could_not_authenticate_personalized_root_hash (iOS 15 Only)\n");
         printf("\t-e\t\tPatch root volume seal is broken (iOS 15 Only)\n");
         printf("\t-u\t\tPatch update_rootfs_rw (iOS 15 Only)\n");
+        printf("\t-ue\t\tPatch unencrypted data volume is not allowed (iOS 15 Only)\n");
         printf("\t-p\t\tPatch AMFIInitializeLocalSigningPublicKey (iOS 15 Only)\n");
         printf("\t-h\t\tPatch is_root_hash_authentication_required_ios (iOS 16 only)\n");
         printf("\t-l\t\tPatch launchd path\n");
@@ -1211,6 +1248,10 @@ int main(int argc, char **argv) {
         if(strcmp(argv[i], "-u") == 0) {
             printf("Kernel: Adding update_rootfs_rw patch...\n");
             get_update_rootfs_rw_patch(kernel_buf,kernel_len);
+        }
+        if(strcmp(argv[i], "-ue") == 0) {
+            printf("Kernel: Adding unencrypted data volume patch...\n");
+            get_unencrypted_data_volume_patch(kernel_buf,kernel_len);
         }
         if(strcmp(argv[i], "-h") == 0) {
             printf("Kernel: Adding is_root_hash_authentication_required_ios patch...\n");
