@@ -203,7 +203,7 @@ int disableTouchidSensor(void* kernel_buf, size_t kernel_len) {
     return 0;
 }
 
-// cryptex validation patch (incomplete)
+// cryptex validation patch (improved)
 int cryptex_patch(void* kernel_buf, size_t kernel_len) {
     printf("%s: Entering ...\n",__FUNCTION__);
     addr_t xref_stuff;
@@ -215,33 +215,18 @@ int cryptex_patch(void* kernel_buf, size_t kernel_len) {
     void *str_stuff;
     void *str_stuff2;
     void *str_stuff3;
-    
-    printf("[*] Patching validate_payload_and_manifest\n");
-    str_stuff = memmem(kernel_buf, kernel_len, "validate_payload_and_manifest", 29);
+    printf("[*] Patching Img4DecodeGetPropertyData\n");
+    str_stuff = memmem(kernel_buf, kernel_len, "Img4DecodeGetPropertyData: [%d %s]", 34);
     if (!str_stuff)
     {
-        printf("[-] Failed to find validate_payload_and_manifest\n");
+        printf("[-] Failed to find Img4DecodeGetPropertyData\n");
         return -1;
     }
     xref_stuff = xref64(kernel_buf, 0, kernel_len, (addr_t)GET_OFFSET(kernel_len, str_stuff));
     beg_func = bof64(kernel_buf, 0, xref_stuff);
     *(uint32_t *)(kernel_buf + beg_func) = 0x52800000; // mov w0, #0
     *(uint32_t *)(kernel_buf + beg_func + 0x4) = 0xD65F03C0; // ret
-    printf("[+] Patched validate_payload_and_manifest\n");
-    
-    // loadTrustCacheWithType
-    printf("[*] Patching loadTrustCacheWithType\n");
-    str_stuff2 = memmem(kernel_buf, kernel_len, "loadTrustCacheWithType", 22);
-    if (!str_stuff2)
-    {
-        printf("[-] Failed to find loadTrustCacheWithType\n");
-        return -1;
-    }
-    xref_stuff2 = xref64(kernel_buf, 0, kernel_len, (addr_t)GET_OFFSET(kernel_len, str_stuff2));
-    beg_func2 = bof64(kernel_buf, 0, xref_stuff2);
-    *(uint32_t *)(kernel_buf + beg_func2) = 0x52800000; // mov w0, #0
-    *(uint32_t *)(kernel_buf + beg_func2 + 0x4) = 0xD65F03C0; // ret
-    printf("[+] Patched loadTrustCacheWithType\n");
+    printf("[+] Patched Img4DecodeGetPropertyData\n");
     return 0;
 }
 
